@@ -41,7 +41,7 @@
         .request-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
         .request-card.status-pendente { border-left: 5px solid var(--danger-color); }
         .request-card.status-em-andamento { border-left: 5px solid var(--warning-color); }
-        .request-card.status-concluido, .request-card.status-concluído { border-left: 5px solid var(--success-color); }
+        .request-card.status-concluido { border-left: 5px solid var(--success-color); }
         .request-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
         .request-id { font-size: 1.2rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 5px; }
         .request-timestamp { font-size: 0.9rem; color: var(--text-secondary); opacity: 0.8; }
@@ -51,6 +51,7 @@
         .detail-value { font-size: 1rem; font-weight: 500; color: var(--text-primary); }
         .priority-tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: white; }
         .priority-tag.urgente { background: var(--danger-color); animation: pulse 2s infinite; }
+        .priority-tag.moderado { background: var(--warning-color); }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .card-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; text-decoration: none; }
@@ -146,125 +147,92 @@
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // ===================================================================== //
-            // SUA URL FINAL E FUNCIONAL JÁ ESTÁ AQUI
-            // ===================================================================== //
-            var API_URL = 'https://script.google.com/macros/s/AKfycbzMZS2FbOveFWCuh6DCS24fzjCdxjgyVi7FPmGOGxOWd0Uj_cwk79uk6nf1enpbIdlpeg/exec';
-
-            // --- Variáveis do painel ---
-            var loadingOverlay = document.getElementById('loadingOverlay');
-            var requestsList = document.getElementById('requestsList');
-            var emptyState = document.getElementById('emptyState');
-            var pendingCountEl = document.getElementById('pendingCount');
-            var inProgressCountEl = document.getElementById('inProgressCount');
-            var completedCountEl = document.getElementById('completedCount');
-            var statusFilter = document.getElementById('statusFilter');
-            var areaFilter = document.getElementById('areaFilter');
-            var dateFilter = document.getElementById('dateFilter');
-            var refreshBtn = document.getElementById('refreshBtn');
-            var observationModal = document.getElementById('observationModal');
-            var modalTitle = document.getElementById('modalTitle');
-            var observationText = document.getElementById('observationText');
-            var confirmActionBtn = document.getElementById('confirmActionBtn');
-            var modalCloseBtn = observationModal.querySelector('.modal-close');
-            var modalCancelBtn = observationModal.querySelector('.modal-cancel');
+        // ===================================================================== //
+        // ==         CÓDIGO FINAL v10 - CORRIGIDO PARA NOMES DE COLUNA       == //
+        // ===================================================================== //
+        document.addEventListener('DOMContentLoaded', () => {
+            const SHEETDB_URL = 'https://script.google.com/macros/s/AKfycbzWhip44-df3MqUmbvA8jIL46llzY8fkugCBdcMqpFuvjHhQwQ79O7dn_MroYhjFLQprQ/exec';
             
-            var allRequests = [];
-            var currentRequestId = null;
-            var currentAction = null;
+            const loadingOverlay = document.getElementById('loadingOverlay' );
+            const requestsList = document.getElementById('requestsList');
+            const emptyState = document.getElementById('emptyState');
+            const pendingCountEl = document.getElementById('pendingCount');
+            const inProgressCountEl = document.getElementById('inProgressCount');
+            const completedCountEl = document.getElementById('completedCount');
+            const statusFilter = document.getElementById('statusFilter');
+            const areaFilter = document.getElementById('areaFilter');
+            const dateFilter = document.getElementById('dateFilter');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const observationModal = document.getElementById('observationModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const observationText = document.getElementById('observationText');
+            const confirmActionBtn = document.getElementById('confirmActionBtn');
+            const modalCloseBtn = observationModal.querySelector('.modal-close');
+            const modalCancelBtn = observationModal.querySelector('.modal-cancel');
+            
+            let allRequests = [];
+            let currentRequestId = null;
+            let currentAction = null;
 
-            // --- Funções Auxiliares ---
-            function toggleLoading(show) { loadingOverlay.style.display = show ? 'flex' : 'none'; };
+            const toggleLoading = (show) => { loadingOverlay.style.display = show ? 'flex' : 'none'; };
 
-            function showNotification(message, type) {
-                type = type || 'info';
-                var notificationsContainer = document.getElementById('notifications');
-                var notification = document.createElement('div');
-                notification.className = 'notification ' + type;
+            const showNotification = (message, type = 'info') => {
+                const notificationsContainer = document.getElementById('notifications');
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
                 notification.textContent = message;
                 notificationsContainer.appendChild(notification);
-                setTimeout(function() { if(notification.parentNode) notification.parentNode.removeChild(notification); }, 3000);
+                setTimeout(() => { if(notification.parentNode) notification.parentNode.removeChild(notification); }, 3000);
             };
 
-            // --- Funções da API ---
-            function fetchData() {
+            const fetchData = async () => {
                 toggleLoading(true);
-                fetch(API_URL)
-                    .then(function(response) {
-                        if (!response.ok) { throw new Error('Erro de rede: ' + response.status); }
-                        return response.json();
-                    })
-                    .then(function(data) {
-                        allRequests = data.map(function(r) {
-                            // Modifica o objeto diretamente para máxima compatibilidade
-                            var status = r.Status ? String(r.Status).toLowerCase().trim() : 'pendente';
-                            r.Status = status;
-                            return r;
-                        });
-                        render();
-                    })
-                    .catch(function(error) {
-                        showNotification('Falha ao carregar dados: ' + error.message, 'error');
-                        // Garante que a lista seja limpa e o loading removido em caso de erro
-                        allRequests = [];
-                        render();
-                    })
-                    .finally(function() {
-                        toggleLoading(false);
+                try {
+                    const response = await fetch(SHEETDB_URL);
+                    if (!response.ok) throw new Error(`Erro de rede: ${response.status}`);
+                    const data = await response.json();
+                    allRequests = data.map(r => ({...r, status: r.status ? String(r.status).toLowerCase().trim() : 'pendente' }));
+                    populateAreaFilter();
+                    render();
+                    showNotification('Dados carregados com sucesso!', 'success');
+                } catch (error) {
+                    showNotification(`Falha ao carregar dados: ${error.message}`, 'error');
+                    allRequests = [];
+                    render();
+                } finally { toggleLoading(false); }
+            };
+
+            const updateData = async (id, updatePayload) => {
+                toggleLoading(true);
+                try {
+                    const url = `${SHEETDB_URL}/id/${id}`;
+                    const response = await fetch(url, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatePayload)
                     });
+                    if (!response.ok) throw new Error('Falha ao atualizar.');
+                    await response.json();
+                    showNotification('Atualização enviada com sucesso!', 'success');
+                    setTimeout(fetchData, 500);
+                } catch (error) {
+                    showNotification(`Falha ao atualizar: ${error.message}`, 'error');
+                    toggleLoading(false);
+                }
             };
 
-            function updateData(id, updatePayload) {
-                toggleLoading(true);
-                fetch(API_URL, {
-                    method: 'POST',
-                    redirect: 'follow', // Adicionado para depuração
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ id: id, payload: updatePayload })
-                })
-                .then(function(response) {
-                    if (!response.ok) { throw new Error('Falha ao atualizar. Status: ' + response.status); }
-                    return response.json();
-                })
-                .then(function(result) {
-                    if (result.status !== 'success') { throw new Error(result.message); }
-                    showNotification('Status atualizado com sucesso!', 'success');
-                    setTimeout(fetchData, 500);
-                })
-                .catch(function(error) {
-                    showNotification('Falha ao atualizar: ' + error.message, 'error');
-                    toggleLoading(false);
-                });
-            };
-            
-            // --- Funções de Renderização ---
-            function render() {
-                var filteredRequests = getFilteredRequests();
+            const render = () => {
+                const filteredRequests = getFilteredRequests();
                 renderCounters(allRequests);
-                populateAreaFilter(allRequests);
                 renderRequestsList(filteredRequests);
             };
-            
-            function renderCounters(requests) {
-                pendingCountEl.textContent = requests.filter(function(r) { return r.Status === 'pendente'; }).length;
-                inProgressCountEl.textContent = requests.filter(function(r) { return r.Status === 'em andamento'; }).length;
-                completedCountEl.textContent = requests.filter(function(r) { return r.Status === 'concluido' || r.Status === 'concluído'; }).length;
-            };
 
-            function populateAreaFilter(requests) {
-                var currentArea = areaFilter.value;
-                var areas = [];
-                requests.forEach(function(r) {
-                    var area = r['Área Solicitante'];
-                    if (area && !areas.includes(area)) {
-                        areas.push(area);
-                    }
-                });
-                
+            const populateAreaFilter = () => {
+                const currentArea = areaFilter.value;
+                const areas = [...new Set(allRequests.map(r => r['🏢  Área Solicitante']).filter(Boolean))];
                 areaFilter.innerHTML = '<option value="todos">Todas as Áreas</option>';
-                areas.sort().forEach(function(area) {
-                    var option = document.createElement('option');
+                areas.sort().forEach(area => {
+                    const option = document.createElement('option');
                     option.value = area;
                     option.textContent = area;
                     areaFilter.appendChild(option);
@@ -272,19 +240,41 @@
                 if(areas.includes(currentArea)) areaFilter.value = currentArea;
             };
 
-            function getFilteredRequests() {
-                var status = statusFilter.value;
-                var area = areaFilter.value;
-                return allRequests.filter(function(req) {
-                    var statusMatch = (status === 'todos') || (req.Status && req.Status.replace('í', 'i') === status);
-                    var areaMatch = (area === 'todos') || (req['Área Solicitante'] === area);
-                    return statusMatch && areaMatch;
-                }).sort(function(a, b) {
-                    return b['n do item'] - a['n do item'];
+            const getFilteredRequests = () => {
+                const status = statusFilter.value;
+                const area = areaFilter.value;
+                const date = dateFilter.value;
+
+                return allRequests.filter(req => {
+                    const statusMatch = status === 'todos' || req.status === status;
+                    const areaMatch = area === 'todos' || req['🏢  Área Solicitante'] === area;
+                    let dateMatch = true;
+                    if (date && req['Carimbo de data/hora']) {
+                        try {
+                            const reqDateStr = req['Carimbo de data/hora'].split(' ')[0];
+                            const [day, month, year] = reqDateStr.split('/');
+                            const requestDate = new Date(`${year}-${month}-${day}T00:00:00`);
+                            const filterDate = new Date(`${date}T00:00:00`);
+                            dateMatch = requestDate.getTime() === filterDate.getTime();
+                        } catch(e) { dateMatch = false; }
+                    }
+                    return statusMatch && areaMatch && dateMatch;
+                }).sort((a, b) => {
+                    try {
+                        const dateA = new Date(a['Carimbo de data/hora'].split(' ')[0].split('/').reverse().join('-') + 'T' + a['Carimbo de data/hora'].split(' ')[1]);
+                        const dateB = new Date(b['Carimbo de data/hora'].split(' ')[0].split('/').reverse().join('-') + 'T' + b['Carimbo de data/hora'].split(' ')[1]);
+                        return dateB - dateA;
+                    } catch(e) { return 0; }
                 });
             };
 
-            function renderRequestsList(requests) {
+            const renderCounters = (requests) => {
+                pendingCountEl.textContent = requests.filter(r => r.status === 'pendente').length;
+                inProgressCountEl.textContent = requests.filter(r => r.status === 'em-andamento').length;
+                completedCountEl.textContent = requests.filter(r => r.status === 'concluido').length;
+            };
+
+            const renderRequestsList = (requests) => {
                 requestsList.innerHTML = '';
                 if (requests.length === 0) {
                     emptyState.style.display = 'block';
@@ -292,111 +282,110 @@
                 }
                 emptyState.style.display = 'none';
 
-                requests.forEach(function(req) {
-                    var card = document.createElement('div');
-                    var statusClass = req.Status ? req.Status.toLowerCase().replace(/\s/g, '-').replace('í', 'i') : 'pendente';
-                    card.className = 'request-card status-' + statusClass;
-                    card.dataset.id = req['n do item'];
+                requests.forEach(req => {
+                    const card = document.createElement('div');
+                    card.className = `request-card status-${req.status}`;
+                    card.dataset.id = req.id;
 
-                    var fields = {
-                        'Solicitante': 'Solicitante', 'Área Solicitante': 'Área', 'Tipo de Operação': 'Operação',
-                        'Código do Item': 'Item', 'Localização (opcional)': 'Localização',
-                        'Operador': 'Operador', 'observaçãoOperador': 'Obs. Operador', 'horarioinicio': 'Início', 'horarioconclusao': 'Conclusão'
+                    const priority = req['⏱️  Tempo de Atendimento:'] || '';
+                    let priorityClass = '';
+                    if (priority.includes('Urgente')) priorityClass = 'urgente';
+                    else if (priority.includes('Moderado')) priorityClass = 'moderado';
+
+                    let detailsHtml = '';
+                    const fields = {
+                        '👤  Solicitante:': 'Solicitante', '🏢  Área Solicitante': 'Área', '📋  Tipo de Operação:': 'Operação',
+                        '🆔  Código do Item:': 'Item', '📍  Localização (opcional)': 'Localização', '💬  Observação (opcional)': 'Observação',
+                        'operador': 'Operador', 'observacaoOperador': 'Obs. Operador', 'horarioInicio': 'Início', 'horarioConclusao': 'Conclusão'
                     };
                     
-                    var detailsHtml = '';
-                    for(var key in fields) {
+                    for(const key in fields) {
                         if(req[key] && String(req[key]).trim() !== '') {
-                            detailsHtml += '<div class="detail-item"><span class="detail-label">' + fields[key] + '</span><span class="detail-value">' + req[key] + '</span></div>';
+                            detailsHtml += `<div class="detail-item"><span class="detail-label">${fields[key]}</span><span class="detail-value">${req[key]}</span></div>`;
                         }
                     }
-                    
-                    var priorityText = req['horarioinicio'] || '';
-                    var isUrgente = priorityText.toLowerCase().includes('urgente');
 
-                    card.innerHTML = 
-                        '<div class="request-header">' +
-                            '<div>' +
-                                '<div class="request-id">Chamado ID: ' + (req.ID || 'N/A') + '</div>' +
-                                '<div class="request-timestamp">' + (req['Carimbo de data/hora'] || '') + '</div>' +
-                            '</div>' +
-                            (isUrgente ? '<div class="priority-tag urgente">🔥 Urgente</div>' : '') +
-                        '</div>' +
-                        '<div class="request-details">' + detailsHtml + '</div>' +
-                        '<div class="card-actions"></div>';
+                    card.innerHTML = `
+                        <div class="request-header">
+                            <div>
+                                <div class="request-id">${req.id || 'N/A'}</div>
+                                <div class="request-timestamp">${req['Carimbo de data/hora'] || ''}</div>
+                            </div>
+                            ${priority ? `<div class="priority-tag ${priorityClass}">${priority}</div>` : ''}
+                        </div>
+                        <div class="request-details">${detailsHtml}</div>
+                        <div class="card-actions"></div>`;
                     
-                    var actionsContainer = card.querySelector('.card-actions');
-                    var itemId = req['n do item'];
-
-                    if (req.Status === 'pendente') {
-                        var btn = document.createElement('button');
+                    const actionsContainer = card.querySelector('.card-actions');
+                    if (req.status === 'pendente') {
+                        const btn = document.createElement('button');
                         btn.className = 'btn btn-primary';
                         btn.textContent = '▶️ Iniciar Atendimento';
-                        btn.onclick = function() { handleAction('start', itemId); };
+                        btn.onclick = () => handleAction('start', req.id);
                         actionsContainer.appendChild(btn);
-                    } else if (req.Status === 'em andamento') {
-                        var btnObs = document.createElement('button');
+                    } else if (req.status === 'em-andamento') {
+                        const btnObs = document.createElement('button');
                         btnObs.className = 'btn btn-secondary';
                         btnObs.textContent = '📝 Adicionar Observação';
-                        btnObs.onclick = function() { handleAction('observe', itemId); };
+                        btnObs.onclick = () => handleAction('observe', req.id);
                         actionsContainer.appendChild(btnObs);
 
-                        var btnDone = document.createElement('button');
+                        const btnDone = document.createElement('button');
                         btnDone.className = 'btn btn-success';
                         btnDone.textContent = '✅ Concluir Atendimento';
-                        btnDone.onclick = function() { handleAction('complete', itemId); };
+                        btnDone.onclick = () => handleAction('complete', req.id);
                         actionsContainer.appendChild(btnDone);
                     } else {
-                        actionsContainer.innerHTML = '<span>✅ Concluído em ' + (req.horarioconclusao || '') + '</span>';
+                        actionsContainer.innerHTML = '<span>✅ Concluído</span>';
                     }
                     requestsList.appendChild(card);
                 });
             };
 
-            function handleAction(action, id) {
+            const handleAction = (action, id) => {
                 currentAction = action;
                 currentRequestId = id;
-                var request = allRequests.find(function(r) { return r['n do item'] == id; });
-                var now = new Date().toLocaleString('pt-BR', { hour12: false, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', '');
+                const request = allRequests.find(r => r.id === id);
 
                 if (action === 'start') {
-                    updateData(id, { Status: 'em andamento', horarioinicio: now });
+                    updateData(id, { status: 'em-andamento', horarioInicio: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) });
                 } else if (action === 'complete') {
-                    updateData(id, { Status: 'concluido', horarioconclusao: now });
-                } else if (action === 'observe' && request) {
-                    modalTitle.textContent = 'Adicionar Observação para o Chamado ID ' + request.ID;
-                    observationText.value = request.observaçãoOperador || '';
+                     updateData(id, { status: 'concluido', horarioConclusao: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) });
+                } else if (action === 'observe') {
+                    modalTitle.textContent = `Adicionar Observação para ${request.id}`;
+                    observationText.value = request.observacaoOperador || '';
                     observationModal.style.display = 'block';
                 }
             };
             
-            function closeModal() {
+            const closeModal = () => {
                 observationModal.style.display = 'none';
                 observationText.value = '';
                 currentRequestId = null;
                 currentAction = null;
             };
 
-            confirmActionBtn.addEventListener('click', function() {
+            confirmActionBtn.addEventListener('click', () => {
                 if (currentAction === 'observe' && currentRequestId !== null) {
-                    updateData(currentRequestId, { observaçãoOperador: observationText.value });
+                    updateData(currentRequestId, { observacaoOperador: observationText.value });
                 }
                 closeModal();
             });
 
             modalCloseBtn.addEventListener('click', closeModal);
             modalCancelBtn.addEventListener('click', closeModal);
-            window.addEventListener('click', function(event) {
+            window.addEventListener('click', (event) => {
                 if (event.target == observationModal) closeModal();
             });
             
-            [statusFilter, areaFilter, dateFilter].forEach(function(el) { el.addEventListener('change', render); });
+            [statusFilter, areaFilter, dateFilter].forEach(el => el.addEventListener('change', render));
             refreshBtn.addEventListener('click', fetchData);
 
-            // --- Execução Inicial ---
             fetchData();
-            setInterval(fetchData, 60000); // Atualiza a cada minuto
+            setInterval(fetchData, 60000); // Atualiza a cada 30 segundos
         });
     </script>
 </body>
 </html>
+
+
