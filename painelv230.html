@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Operador - Empilhadeira</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #3498db; --secondary-color: #2c3e50; --success-color: #27ae60;
+            --warning-color: #f39c12; --danger-color: #e74c3c; --background-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%  );
+            --card-background: #ffffff; --text-primary: #2c3e50; --text-secondary: #6c757d;
+            --border-color: #e9ecef; --shadow: 0 2px 10px rgba(0,0,0,0.1); --border-radius: 12px;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; color: var(--text-primary); }
+        .header { background: var(--background-gradient); color: white; padding: 30px; position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="1" fill="white" opacity="0.1"/><circle cx="10" cy="90" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain  )"/></svg>'); pointer-events: none; }
+        .header-content { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; gap: 20px; }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-icon { font-size: 3rem; filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3)); }
+        .logo-text h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .logo-text p { font-size: 1.1rem; opacity: 0.9; font-weight: 300; }
+        .status-counters { display: flex; gap: 20px; flex-wrap: wrap; }
+        .counter { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: var(--border-radius); padding: 20px 30px; text-align: center; min-width: 120px; transition: all 0.3s ease; }
+        .counter:hover { transform: translateY(-2px); background: rgba(255,255,255,0.25); }
+        .counter-number { display: block; font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 5px; }
+        .counter-label { font-size: 0.9rem; opacity: 0.9; font-weight: 500; }
+        .counter.pending .counter-number { color: #ff6b6b; } .counter.in-progress .counter-number { color: #ffd93d; } .counter.completed .counter-number { color: #6bcf7f; }
+        .filters-section { background: white; padding: 25px; box-shadow: var(--shadow); border-bottom: 1px solid var(--border-color); }
+        .filters-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 25px; align-items: end; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+        .filter-group label { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; }
+        .filter-group select, .filter-group input { padding: 12px 15px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1rem; transition: all 0.3s ease; background: white; }
+        .filter-group select:focus, .filter-group input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+        .refresh-btn { background: var(--primary-color); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; height: fit-content; }
+        .refresh-btn:hover { background: #2980b9; transform: translateY(-1px); }
+        .main-content { max-width: 1200px; margin: 0 auto; padding: 30px 25px; }
+        .requests-list { display: grid; gap: 20px; }
+        .request-card { background: var(--card-background); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 25px; box-shadow: var(--shadow); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .request-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .request-card.status-pendente { border-left: 5px solid var(--danger-color); }
+        .request-card.status-em-andamento { border-left: 5px solid var(--warning-color); }
+        .request-card.status-concluido, .request-card.status-concluído { border-left: 5px solid var(--success-color); }
+        .request-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
+        .request-id { font-size: 1.2rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 5px; }
+        .request-timestamp { font-size: 0.9rem; color: var(--text-secondary); opacity: 0.8; }
+        .request-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .detail-item { display: flex; flex-direction: column; gap: 5px; word-wrap: break-word; }
+        .detail-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-value { font-size: 1rem; font-weight: 500; color: var(--text-primary); }
+        .priority-tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: white; }
+        .priority-tag.urgente { background: var(--danger-color); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .card-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-primary { background: var(--primary-color); color: white; } .btn-primary:hover { background: #2980b9; }
+        .btn-success { background: var(--success-color); color: white; } .btn-success:hover { background: #219a52; }
+        .btn-secondary { background: var(--text-secondary); color: white; } .btn-secondary:hover { background: #5a6c7d; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); display: none; }
+        .empty-icon { font-size: 4rem; margin-bottom: 20px; opacity: 0.5; }
+        .empty-state h3 { font-size: 1.5rem; margin-bottom: 10px; color: var(--text-primary); }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
+        .modal-content { background: white; margin: 10% auto; padding: 0; border-radius: var(--border-radius); width: 90%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { padding: 20px 25px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; color: var(--text-primary); }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s ease; }
+        .modal-close:hover { background: var(--border-color); }
+        .modal-body { padding: 25px; }
+        .modal-body textarea { width: 100%; padding: 15px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1rem; font-family: inherit; resize: vertical; min-height: 100px; }
+        .modal-body textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+        .modal-footer { padding: 20px 25px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; justify-content: flex-end; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(5px); }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top: 4px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #notifications { position: fixed; top: 20px; right: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; }
+        .notification { background: var(--success-color); color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); animation: slideInRight 0.3s ease, slideOutRight 0.3s ease 2.7s forwards; max-width: 350px; min-width: 250px; }
+        .notification.error { background: var(--danger-color); } .notification.warning { background: var(--warning-color); } .notification.info { background: var(--primary-color); }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideOutRight { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+    </style>
+</head>
+<body>
+    <div id="notifications"></div>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Carregando dados...</p>
+    </div>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🚛</span>
+                <div class="logo-text">
+                    <h1>Painel do Operador</h1>
+                    <p>Controle de Solicitações de Empilhadeira</p>
+                </div>
+            </div>
+            <div class="status-counters">
+                <div class="counter pending"><span class="counter-number" id="pendingCount">0</span><span class="counter-label">Pendentes</span></div>
+                <div class="counter in-progress"><span class="counter-number" id="inProgressCount">0</span><span class="counter-label">Em Andamento</span></div>
+                <div class="counter completed"><span class="counter-number" id="completedCount">0</span><span class="counter-label">Concluídos</span></div>
+            </div>
+        </div>
+    </header>
+    <section class="filters-section">
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="statusFilter">Filtrar por Status:</label>
+                <select id="statusFilter">
+                    <option value="todos">Todos</option><option value="pendente">Pendentes</option><option value="em-andamento">Em Andamento</option><option value="concluido">Concluídos</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="areaFilter">Área:</label>
+                <select id="areaFilter"><option value="todos">Todas as Áreas</option></select>
+            </div>
+            <div class="filter-group">
+                <label for="dateFilter">Data:</label>
+                <input type="date" id="dateFilter">
+            </div>
+            <button id="refreshBtn" class="refresh-btn">🔄 Atualizar</button>
+        </div>
+    </section>
+    <main class="main-content">
+        <div id="requestsList" class="requests-list"></div>
+        <div id="emptyState" class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>Nenhuma solicitação encontrada</h3>
+            <p>Ajuste os filtros ou aguarde novas solicitações</p>
+        </div>
+    </main>
+    <div id="observationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Adicionar Observação</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="observationText" placeholder="Adicione uma observação sobre o atendimento (opcional)..." rows="4"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancelar</button>
+                <button class="btn btn-primary" id="confirmActionBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ===================================================================== //
+            // SUA URL FINAL E FUNCIONAL JÁ ESTÁ AQUI
+            // ===================================================================== //
+            var API_URL = 'https://script.google.com/macros/s/AKfycbzMZS2FbOveFWCuh6DCS24fzjCdxjgyVi7FPmGOGxOWd0Uj_cwk79uk6nf1enpbIdlpeg/exec';
+
+            // --- Variáveis do painel ---
+            var loadingOverlay = document.getElementById('loadingOverlay');
+            var requestsList = document.getElementById('requestsList');
+            var emptyState = document.getElementById('emptyState');
+            var pendingCountEl = document.getElementById('pendingCount');
+            var inProgressCountEl = document.getElementById('inProgressCount');
+            var completedCountEl = document.getElementById('completedCount');
+            var statusFilter = document.getElementById('statusFilter');
+            var areaFilter = document.getElementById('areaFilter');
+            var dateFilter = document.getElementById('dateFilter');
+            var refreshBtn = document.getElementById('refreshBtn');
+            var observationModal = document.getElementById('observationModal');
+            var modalTitle = document.getElementById('modalTitle');
+            var observationText = document.getElementById('observationText');
+            var confirmActionBtn = document.getElementById('confirmActionBtn');
+            var modalCloseBtn = observationModal.querySelector('.modal-close');
+            var modalCancelBtn = observationModal.querySelector('.modal-cancel');
+            
+            var allRequests = [];
+            var currentRequestId = null;
+            var currentAction = null;
+
+            // --- Funções Auxiliares ---
+            function toggleLoading(show) { loadingOverlay.style.display = show ? 'flex' : 'none'; };
+
+            function showNotification(message, type) {
+                type = type || 'info';
+                var notificationsContainer = document.getElementById('notifications');
+                var notification = document.createElement('div');
+                notification.className = 'notification ' + type;
+                notification.textContent = message;
+                notificationsContainer.appendChild(notification);
+                setTimeout(function() { if(notification.parentNode) notification.parentNode.removeChild(notification); }, 3000);
+            };
+
+            // --- Funções da API ---
+            function fetchData() {
+                toggleLoading(true);
+                fetch(API_URL)
+                    .then(function(response) {
+                        if (!response.ok) { throw new Error('Erro de rede: ' + response.status); }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        allRequests = data.map(function(r) {
+                            // Modifica o objeto diretamente para máxima compatibilidade
+                            var status = r.Status ? String(r.Status).toLowerCase().trim() : 'pendente';
+                            r.Status = status;
+                            return r;
+                        });
+                        render();
+                    })
+                    .catch(function(error) {
+                        showNotification('Falha ao carregar dados: ' + error.message, 'error');
+                        // Garante que a lista seja limpa e o loading removido em caso de erro
+                        allRequests = [];
+                        render();
+                    })
+                    .finally(function() {
+                        toggleLoading(false);
+                    });
+            };
+
+            function updateData(id, updatePayload) {
+                toggleLoading(true);
+                fetch(API_URL, {
+                    method: 'POST',
+                    redirect: 'follow', // Adicionado para depuração
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ id: id, payload: updatePayload })
+                })
+                .then(function(response) {
+                    if (!response.ok) { throw new Error('Falha ao atualizar. Status: ' + response.status); }
+                    return response.json();
+                })
+                .then(function(result) {
+                    if (result.status !== 'success') { throw new Error(result.message); }
+                    showNotification('Status atualizado com sucesso!', 'success');
+                    setTimeout(fetchData, 500);
+                })
+                .catch(function(error) {
+                    showNotification('Falha ao atualizar: ' + error.message, 'error');
+                    toggleLoading(false);
+                });
+            };
+            
+            // --- Funções de Renderização ---
+            function render() {
+                var filteredRequests = getFilteredRequests();
+                renderCounters(allRequests);
+                populateAreaFilter(allRequests);
+                renderRequestsList(filteredRequests);
+            };
+            
+            function renderCounters(requests) {
+                pendingCountEl.textContent = requests.filter(function(r) { return r.Status === 'pendente'; }).length;
+                inProgressCountEl.textContent = requests.filter(function(r) { return r.Status === 'em andamento'; }).length;
+                completedCountEl.textContent = requests.filter(function(r) { return r.Status === 'concluido' || r.Status === 'concluído'; }).length;
+            };
+
+            function populateAreaFilter(requests) {
+                var currentArea = areaFilter.value;
+                var areas = [];
+                requests.forEach(function(r) {
+                    var area = r['Área Solicitante'];
+                    if (area && !areas.includes(area)) {
+                        areas.push(area);
+                    }
+                });
+                
+                areaFilter.innerHTML = '<option value="todos">Todas as Áreas</option>';
+                areas.sort().forEach(function(area) {
+                    var option = document.createElement('option');
+                    option.value = area;
+                    option.textContent = area;
+                    areaFilter.appendChild(option);
+                });
+                if(areas.includes(currentArea)) areaFilter.value = currentArea;
+            };
+
+            function getFilteredRequests() {
+                var status = statusFilter.value;
+                var area = areaFilter.value;
+                return allRequests.filter(function(req) {
+                    var statusMatch = (status === 'todos') || (req.Status && req.Status.replace('í', 'i') === status);
+                    var areaMatch = (area === 'todos') || (req['Área Solicitante'] === area);
+                    return statusMatch && areaMatch;
+                }).sort(function(a, b) {
+                    return b['n do item'] - a['n do item'];
+                });
+            };
+
+            function renderRequestsList(requests) {
+                requestsList.innerHTML = '';
+                if (requests.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                emptyState.style.display = 'none';
+
+                requests.forEach(function(req) {
+                    var card = document.createElement('div');
+                    var statusClass = req.Status ? req.Status.toLowerCase().replace(/\s/g, '-').replace('í', 'i') : 'pendente';
+                    card.className = 'request-card status-' + statusClass;
+                    card.dataset.id = req['n do item'];
+
+                    var fields = {
+                        'Solicitante': 'Solicitante', 'Área Solicitante': 'Área', 'Tipo de Operação': 'Operação',
+                        'Código do Item': 'Item', 'Localização (opcional)': 'Localização',
+                        'Operador': 'Operador', 'observaçãoOperador': 'Obs. Operador', 'horarioinicio': 'Início', 'horarioconclusao': 'Conclusão'
+                    };
+                    
+                    var detailsHtml = '';
+                    for(var key in fields) {
+                        if(req[key] && String(req[key]).trim() !== '') {
+                            detailsHtml += '<div class="detail-item"><span class="detail-label">' + fields[key] + '</span><span class="detail-value">' + req[key] + '</span></div>';
+                        }
+                    }
+                    
+                    var priorityText = req['horarioinicio'] || '';
+                    var isUrgente = priorityText.toLowerCase().includes('urgente');
+
+                    card.innerHTML = 
+                        '<div class="request-header">' +
+                            '<div>' +
+                                '<div class="request-id">Chamado ID: ' + (req.ID || 'N/A') + '</div>' +
+                                '<div class="request-timestamp">' + (req['Carimbo de data/hora'] || '') + '</div>' +
+                            '</div>' +
+                            (isUrgente ? '<div class="priority-tag urgente">🔥 Urgente</div>' : '') +
+                        '</div>' +
+                        '<div class="request-details">' + detailsHtml + '</div>' +
+                        '<div class="card-actions"></div>';
+                    
+                    var actionsContainer = card.querySelector('.card-actions');
+                    var itemId = req['n do item'];
+
+                    if (req.Status === 'pendente') {
+                        var btn = document.createElement('button');
+                        btn.className = 'btn btn-primary';
+                        btn.textContent = '▶️ Iniciar Atendimento';
+                        btn.onclick = function() { handleAction('start', itemId); };
+                        actionsContainer.appendChild(btn);
+                    } else if (req.Status === 'em andamento') {
+                        var btnObs = document.createElement('button');
+                        btnObs.className = 'btn btn-secondary';
+                        btnObs.textContent = '📝 Adicionar Observação';
+                        btnObs.onclick = function() { handleAction('observe', itemId); };
+                        actionsContainer.appendChild(btnObs);
+
+                        var btnDone = document.createElement('button');
+                        btnDone.className = 'btn btn-success';
+                        btnDone.textContent = '✅ Concluir Atendimento';
+                        btnDone.onclick = function() { handleAction('complete', itemId); };
+                        actionsContainer.appendChild(btnDone);
+                    } else {
+                        actionsContainer.innerHTML = '<span>✅ Concluído em ' + (req.horarioconclusao || '') + '</span>';
+                    }
+                    requestsList.appendChild(card);
+                });
+            };
+
+            function handleAction(action, id) {
+                currentAction = action;
+                currentRequestId = id;
+                var request = allRequests.find(function(r) { return r['n do item'] == id; });
+                var now = new Date().toLocaleString('pt-BR', { hour12: false, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', '');
+
+                if (action === 'start') {
+                    updateData(id, { Status: 'em andamento', horarioinicio: now });
+                } else if (action === 'complete') {
+                    updateData(id, { Status: 'concluido', horarioconclusao: now });
+                } else if (action === 'observe' && request) {
+                    modalTitle.textContent = 'Adicionar Observação para o Chamado ID ' + request.ID;
+                    observationText.value = request.observaçãoOperador || '';
+                    observationModal.style.display = 'block';
+                }
+            };
+            
+            function closeModal() {
+                observationModal.style.display = 'none';
+                observationText.value = '';
+                currentRequestId = null;
+                currentAction = null;
+            };
+
+            confirmActionBtn.addEventListener('click', function() {
+                if (currentAction === 'observe' && currentRequestId !== null) {
+                    updateData(currentRequestId, { observaçãoOperador: observationText.value });
+                }
+                closeModal();
+            });
+
+            modalCloseBtn.addEventListener('click', closeModal);
+            modalCancelBtn.addEventListener('click', closeModal);
+            window.addEventListener('click', function(event) {
+                if (event.target == observationModal) closeModal();
+            });
+            
+            [statusFilter, areaFilter, dateFilter].forEach(function(el) { el.addEventListener('change', render); });
+            refreshBtn.addEventListener('click', fetchData);
+
+            // --- Execução Inicial ---
+            fetchData();
+            setInterval(fetchData, 60000); // Atualiza a cada minuto
+        });
+    </script>
+</body>
+</html>
